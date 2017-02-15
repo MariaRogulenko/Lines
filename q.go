@@ -1,4 +1,4 @@
-package main
+package q
 
 import (
 	"fmt"
@@ -11,7 +11,8 @@ var a [9][9]byte
 var colors = [7]byte{'a', 'b', 'c', 'd', 'e', 'f', 'g'}
 var points = 0
 
-func printMatr() {
+// PrintMatr myComment
+func PrintMatr() {
 	for i := 0; i < 9; i++ {
 		for j := 0; j < 9; j++ {
 			fmt.Printf("%c", a[i][j])
