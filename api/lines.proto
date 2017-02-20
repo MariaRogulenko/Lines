@@ -1,0 +1,75 @@
+syntax = "proto3";
+option go_package = "api";
+
+package lines.api;
+
+import "google/api/annotations.proto";
+
+service Game {
+  rpc New(NewRequest) returns (NewResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/new"
+      body: "*"
+    };
+  }
+
+  rpc GetState(StateRequest) returns (State) {
+    option (google.api.http) = {
+      get: "/api/v1/state/{id}"
+    };
+  }
+
+  rpc Move(MoveRequest) returns (MoveResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/move/{id}"
+      body: "*"
+    };
+  }
+}
+
+message NewRequest {
+  string user_name = 1;
+}
+
+message NewResponse {
+  string id = 1;
+}
+
+message StateRequest {
+  string id = 1;
+}
+
+message State {
+  Status status = 1;
+  Board board = 2;
+}
+
+message MoveRequest {
+  string id = 1;
+  Point from = 2;
+  Point to = 3;
+}
+
+message MoveResponse {
+  bool changed = 1;
+  State state = 2;
+}
+
+enum Status {
+  NOT_FOUND = 0;
+  READY = 1;
+  GAME_OVER = 2;
+}
+
+message Board {
+  string created_by = 1;
+  int32 score = 2;
+  repeated int32 table = 3;
+  Point active = 4;
+  repeated int32 next_colors = 5;
+}
+
+message Point {
+  int32 x = 1;
+  int32 y = 2;
+}

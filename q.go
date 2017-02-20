@@ -1,4 +1,4 @@
-package q
+package lines
 
 import (
 	"fmt"
@@ -184,7 +184,6 @@ func main() {
 		createRand()
 		counter--
 	}
-	printMatr()
 
 	for {
 		for true {
@@ -226,6 +225,5 @@ func main() {
 		} else {
 			fmt.Printf("Total is %d\n", points)
 		}
-		printMatr()
 	}
 }
