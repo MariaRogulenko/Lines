@@ -1,0 +1,4 @@
+[ignore]
+  .*/node_modules/react-tap-event-plugin/node_modules/.*
+  .*/node_modules/flux/lib/.*
+

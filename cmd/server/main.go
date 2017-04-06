@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -16,23 +17,28 @@ import (
 )
 
 var (
-	gRPCPort = flag.Int("grpc-port", 8090, "GRPC Server port")
-	httpPort = flag.Int("http-port", 8080, "HTTP Server port")
+	gRPCPort  = flag.Int("grpc-port", 8090, "GRPC Server port")
+	httpPort  = flag.Int("http-port", 8080, "HTTP Server port")
+	staticDir = flag.String("static-dir", "./static", "Folder to serve html/js/css")
 )
 
-func runServer(s *lines.Service) {
+// runService runs the gRPC service.
+func runService(service *lines.Service) {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", *gRPCPort))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	srv := grpc.NewServer()
-	api.RegisterGameServer(srv, s)
-	if err := srv.Serve(l); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	api.RegisterGameServer(srv, service)
+	go func() {
+		if err := srv.Serve(l); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
 }
 
-func registerProxy(ctx context.Context) {
+// registerRPCProxy registers the HTTP handler to proxy REST to gRPC.
+func registerRPCProxy(ctx context.Context) {
 	mux := runtime.NewServeMux()
 	dialOpts := []grpc.DialOption{grpc.WithInsecure()}
 	if err := api.RegisterGameHandlerFromEndpoint(ctx, mux, fmt.Sprintf(":%d", *gRPCPort), dialOpts); err != nil {
@@ -41,12 +47,23 @@ func registerProxy(ctx context.Context) {
 	http.Handle("/api/", mux)
 }
 
+// registerHTMLHandler registers the HTTP handler to server HTML/JS/CSS.
+func registerHTMLHandler() {
+	indexPage, err := ioutil.ReadFile(fmt.Sprintf("%s/index.html", *staticDir))
+	if err != nil {
+		log.Fatalf("failed to read file %q: %v", fmt.Sprintf("%s/index.html", *staticDir), err)
+	}
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { w.Write(indexPage) })
+	http.Handle("/static/", http.StripPrefix("/static", http.FileServer(http.Dir(*staticDir))))
+}
+
 func main() {
 	flag.Parse()
 	s := lines.NewService()
-	go runServer(s)
-	registerProxy(context.Background())
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", *httpPort), nil); err != nil {
-		log.Fatal(err)
-	}
+	lines.RegisterAndOpenDB()
+	//lines.WriteDB()
+	runService(s)
+	registerRPCProxy(context.Background())
+	registerHTMLHandler()
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *httpPort), nil))
 }
