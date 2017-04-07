@@ -26,7 +26,7 @@ export default class Login extends Component {
         this.setState({username: name, userID: id});
         $.ajax({
             type: "POST",
-            url: "/api/v1/new",
+            url: "/api/v1/login",
             data: JSON.stringify({user_name: this.state.username, id: this.state.userID}),
             success: (result) => {
                 const location = {

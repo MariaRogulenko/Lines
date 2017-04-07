@@ -11,13 +11,12 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Service implementes the api.Game GRPC interface.
+// Service implements the api.Game GRPC interface.
 type Service struct {
-	mu     sync.Mutex
-	maxID  int
-	states map[string]*api.State
+	mu sync.Mutex
 }
 
+// DBComminication implements
 type DBComminication struct {
 	id       string
 	username string
@@ -26,6 +25,7 @@ type DBComminication struct {
 	active   Point
 }
 
+// Point implements
 type Point struct {
 	x int32
 	y int32
@@ -33,40 +33,17 @@ type Point struct {
 
 // NewService creates a new instance of the Service struct.
 func NewService() *Service {
-	return &Service{states: map[string]*api.State{}}
+	return &Service{}
 }
 
-// New implementes the api.Game GRPC interface.
-func (s *Service) New(_ context.Context, req *api.NewRequest) (*api.NewResponse, error) {
+// Login implementes the api.Game GRPC interface.
+func (s *Service) Login(_ context.Context, req *api.LoginRequest) (*api.LoginResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	//s.maxID++
-	//id := fmt.Sprintf("%d", s.maxID)
 	result := ReadItem(req.Id)
 	if result != nil {
-
-		return &api.NewResponse{Id: req.Id}, nil
-
+		return &api.LoginResponse{Id: req.Id}, nil
 	}
-	/*
-		s.states[req.Id] = &api.State{
-			Status: api.Status_READY,
-			Board: &api.Board{
-				CreatedBy: req.UserName,
-				Table: []int32{
-					0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 0, 0, 0, 0, 0, 0, 0, 0,
-				},
-			},
-		}
-	*/
 	var arr = []int32{
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -88,15 +65,50 @@ func (s *Service) New(_ context.Context, req *api.NewRequest) (*api.NewResponse,
 			y: -1,
 		},
 	}
-
 	var counter int32 = 81
 	for i := 0; i < 5; i++ {
 		createRand(counter, result)
 		counter--
 	}
 	StoreItem(result)
+	return &api.LoginResponse{Id: req.Id}, nil
+}
 
-	return &api.NewResponse{Id: req.Id}, nil
+// New implementes the api.Game GRPC interface.
+func (s *Service) New(_ context.Context, req *api.NewRequest) (*api.NewResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	result := ReadItem(req.Id)
+	var arr = []int32{
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+	}
+	result.table = arr
+	result.active.x = -1
+	result.active.y = -1
+	var counter int32 = 81
+	for i := 0; i < 5; i++ {
+		createRand(counter, result)
+		counter--
+	}
+	StoreItem(result)
+	return &api.NewResponse{Changed: true, State: &api.State{
+		Status: api.Status_READY,
+		Board: &api.Board{
+			CreatedBy: result.username,
+			Table:     result.table,
+			Active: &api.Point{
+				X: result.active.x,
+				Y: result.active.y,
+			},
+		}}}, nil
 }
 
 // GetState implementes the api.Game GRPC interface.
@@ -108,8 +120,6 @@ func (s *Service) GetState(_ context.Context, req *api.StateRequest) (*api.State
 	//if !ok {
 	//	return &api.State{Status: api.Status_NOT_FOUND}, nil
 	//}
-
-	//fmt.Println(result.table)
 	return &api.State{
 		Status: api.Status_READY,
 		Board: &api.Board{
@@ -137,7 +147,6 @@ func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveRespon
 			counter++
 		}
 	}
-
 	to := req.To.X*9 + req.To.Y
 	if result.active.x != -1 {
 		if result.table[to] > 0 {
@@ -160,7 +169,6 @@ func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveRespon
 					}
 				}
 			}
-
 		}
 	} else {
 		if result.table[to] > 0 {
@@ -169,7 +177,6 @@ func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveRespon
 		}
 	}
 	StoreItem(result)
-
 	return &api.MoveResponse{Changed: true, State: &api.State{
 		Status: api.Status_READY,
 		Board: &api.Board{
@@ -197,9 +204,6 @@ func createRand(counter int32, state *DBComminication) {
 			} else if temp == y {
 				if state.table[j*9+k] == 0 {
 					state.table[j*9+k] = x + 1
-					fmt.Println("rand created ")
-					fmt.Println(j)
-					fmt.Println(k)
 					checkLine(state, Point{x: j, y: k})
 					temp++
 				} else {
@@ -224,9 +228,7 @@ func bfs(state *DBComminication, to Point) bool {
 			u[i][j] = state.table[i*9+j] != 0
 		}
 	}
-
 	queue = append(queue, from)
-	// Top (just get next element, don't remove it)
 	for len(queue) > 0 {
 		curr := queue[0]
 		queue = queue[1:]
@@ -259,13 +261,11 @@ func checkLine(state *DBComminication, curr Point) bool {
 		j++
 	}
 	if j-i+1 > 3 {
-		fmt.Println("1")
 		for l := i; l <= j; l++ {
 			table[l*9+y] = 0
 		}
 		return true
 	}
-
 	// check horizontal
 	i = y
 	j = y
@@ -276,13 +276,11 @@ func checkLine(state *DBComminication, curr Point) bool {
 		j++
 	}
 	if j-i+1 > 3 {
-		fmt.Println("2")
 		for l := i; l <= j; l++ {
 			table[x*9+l] = 0
 		}
 		return true
 	}
-
 	// check diagonal 1
 	ix = x
 	iy = y
@@ -297,13 +295,11 @@ func checkLine(state *DBComminication, curr Point) bool {
 		jy++
 	}
 	if jx-ix+1 > 3 {
-		fmt.Println("3")
 		for l := ix; l <= jx; l++ {
 			table[l*9+l-x+y] = 0
 		}
 		return true
 	}
-
 	// check diagonal 2
 	ix = x
 	iy = y
@@ -318,7 +314,6 @@ func checkLine(state *DBComminication, curr Point) bool {
 		jy--
 	}
 	if jx-ix+1 > 3 {
-		fmt.Println("4")
 		for l := ix; l <= jx; l++ {
 			table[l*9+x+y-l] = 0
 		}

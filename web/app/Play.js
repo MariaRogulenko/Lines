@@ -36,8 +36,17 @@ export default class Play extends Component {
     }
 
     handleNewGame = () => {
-        console.log(this.state.username);
-        browserHistory.push("/user/" + this.state.username + "/");
+        $.ajax({
+            type: "POST",
+            url: "/api/v1/new",
+            data: JSON.stringify({id: this.state.id}),
+            success: (result) => {
+                this.setState({
+                    status: result.state.status,
+                    board: result.state.board,
+                });
+            },
+        });
     }
 
     click = (i: number, j: number) => {
