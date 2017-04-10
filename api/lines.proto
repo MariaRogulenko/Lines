@@ -59,6 +59,7 @@ message StateRequest {
 message State {
   Status status = 1;
   Board board = 2;
+  int32 best_score = 3;
 }
 
 message MoveRequest {

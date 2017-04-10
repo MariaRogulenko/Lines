@@ -6,13 +6,15 @@ import {browserHistory} from 'react-router';
 import FloatingActionButton from 'material-ui/FloatingActionButton';
 import React, {Component} from "react";
 import RaisedButton from 'material-ui/RaisedButton';
+import FlatButton from 'material-ui/FlatButton';
 
 export default class Play extends Component {
     state: {
         id: string,
         status: string,
         board: Object,
-        username: string
+        username: string,
+        bestScore: number
     }
 
     constructor(props: {params: Object}) {
@@ -21,7 +23,8 @@ export default class Play extends Component {
             id: this.props.location.state.userID,
             status: "",
             board: {},
-            username: this.props.location.state.username
+            username: this.props.location.state.username,
+            bestScore: 0
         };
         this.componentWillMount();
     }
@@ -31,8 +34,10 @@ export default class Play extends Component {
             this.setState({
                 status: result.status,
                 board: result.board,
+                bestScore: result.best_score
             });
         });
+        this.zero();
     }
 
     handleNewGame = () => {
@@ -44,9 +49,11 @@ export default class Play extends Component {
                 this.setState({
                     status: result.state.status,
                     board: result.state.board,
+                    bestScore: result.state.best_score
                 });
             },
         });
+        this.zero();
     }
 
     click = (i: number, j: number) => {
@@ -58,9 +65,20 @@ export default class Play extends Component {
                 this.setState({
                     status: result.state.status,
                     board: result.state.board,
+                    bestScore: result.state.best_score
                 });
             },
         });
+        this.zero();
+    }
+
+    zero = () => {
+        if ("undefined" === typeof this.state.bestScore) {
+            this.state.bestScore = 0;
+        }
+        if ("undefined" === typeof this.state.board.score) {
+            this.state.board.score = 0;
+        }
     }
 
     render() {
@@ -91,7 +109,9 @@ export default class Play extends Component {
         return (
             <div>
                 <AppBar title={"Hello, " + this.state.username + "!"} showMenuIconButton={false}/>
-                {JSON.stringify(this.state.status)}
+                <RaisedButton label={"High Score: " + (this.state.bestScore || 0)} disabled={true} />
+                <RaisedButton label={"Curr Score: " + (this.state.board.score || 0)} disabled={true} />
+                <br />
                 <RaisedButton label="Start New Game" onTouchTap={this.handleNewGame}/>
                 {rowDivs}
             </div>

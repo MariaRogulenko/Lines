@@ -5,8 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"fmt"
-
 	"github.com/MariaRogulenko/lines/api"
 	"golang.org/x/net/context"
 )
@@ -18,11 +16,12 @@ type Service struct {
 
 // DBComminication implements
 type DBComminication struct {
-	id       string
-	username string
-	score    int32
-	table    []int32
-	active   Point
+	id        string
+	username  string
+	bestScore int32
+	score     int32
+	table     []int32
+	active    Point
 }
 
 // Point implements
@@ -56,10 +55,11 @@ func (s *Service) Login(_ context.Context, req *api.LoginRequest) (*api.LoginRes
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}
 	result = &DBComminication{
-		id:       req.Id,
-		username: req.UserName,
-		score:    0,
-		table:    arr,
+		id:        req.Id,
+		username:  req.UserName,
+		bestScore: 0,
+		score:     0,
+		table:     arr,
 		active: Point{
 			x: -1,
 			y: -1,
@@ -79,6 +79,7 @@ func (s *Service) New(_ context.Context, req *api.NewRequest) (*api.NewResponse,
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	result := ReadItem(req.Id)
+	// Show error
 	var arr = []int32{
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -93,6 +94,7 @@ func (s *Service) New(_ context.Context, req *api.NewRequest) (*api.NewResponse,
 	result.table = arr
 	result.active.x = -1
 	result.active.y = -1
+	result.score = 0
 	var counter int32 = 81
 	for i := 0; i < 5; i++ {
 		createRand(counter, result)
@@ -103,12 +105,15 @@ func (s *Service) New(_ context.Context, req *api.NewRequest) (*api.NewResponse,
 		Status: api.Status_READY,
 		Board: &api.Board{
 			CreatedBy: result.username,
+			Score:     result.score,
 			Table:     result.table,
 			Active: &api.Point{
 				X: result.active.x,
 				Y: result.active.y,
 			},
-		}}}, nil
+		},
+		BestScore: result.bestScore,
+	}}, nil
 }
 
 // GetState implementes the api.Game GRPC interface.
@@ -124,12 +129,15 @@ func (s *Service) GetState(_ context.Context, req *api.StateRequest) (*api.State
 		Status: api.Status_READY,
 		Board: &api.Board{
 			CreatedBy: result.username,
+			Score:     result.score,
 			Table:     result.table,
 			Active: &api.Point{
 				X: result.active.x,
 				Y: result.active.y,
 			},
-		}}, nil
+		},
+		BestScore: result.bestScore,
+	}, nil
 }
 
 // Move implementes the api.Game GRPC interface.
@@ -150,29 +158,26 @@ func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveRespon
 	to := req.To.X*9 + req.To.Y
 	if result.active.x != -1 {
 		if result.table[to] > 0 {
-			fmt.Println("im here 1")
 			result.active.x = req.To.X
 			result.active.y = req.To.Y
 		} else {
 			dist := Point{x: req.To.X, y: req.To.Y}
 			if bfs(result, dist) {
 				from := result.active.x*9 + result.active.y
-				fmt.Println("im here 2")
 				result.table[from], result.table[to] = result.table[to], result.table[from]
 				result.active.x = -1
 				result.active.y = -1
 				if !checkLine(result, dist) {
-					fmt.Println("im here 3")
 					for i := 0; i < 3; i++ {
 						createRand(counter, result)
 						counter--
 					}
+					//call gen 3 next(result)
 				}
 			}
 		}
 	} else {
 		if result.table[to] > 0 {
-			fmt.Println("im here 4")
 			result.active = Point{x: req.To.X, y: req.To.Y}
 		}
 	}
@@ -181,12 +186,15 @@ func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveRespon
 		Status: api.Status_READY,
 		Board: &api.Board{
 			CreatedBy: result.username,
+			Score:     result.score,
 			Table:     result.table,
 			Active: &api.Point{
 				X: result.active.x,
 				Y: result.active.y,
 			},
-		}}}, nil
+		},
+		BestScore: result.bestScore,
+	}}, nil
 }
 
 func createRand(counter int32, state *DBComminication) {
@@ -260,7 +268,8 @@ func checkLine(state *DBComminication, curr Point) bool {
 	for j < 8 && table[(j+1)*9+y] == table[x*9+y] {
 		j++
 	}
-	if j-i+1 > 3 {
+	if j-i+1 > 4 {
+		calcScore(state, j-i+1)
 		for l := i; l <= j; l++ {
 			table[l*9+y] = 0
 		}
@@ -275,7 +284,8 @@ func checkLine(state *DBComminication, curr Point) bool {
 	for j < 8 && table[x*9+j+1] == table[x*9+y] {
 		j++
 	}
-	if j-i+1 > 3 {
+	if j-i+1 > 4 {
+		calcScore(state, j-i+1)
 		for l := i; l <= j; l++ {
 			table[x*9+l] = 0
 		}
@@ -294,7 +304,8 @@ func checkLine(state *DBComminication, curr Point) bool {
 		jx++
 		jy++
 	}
-	if jx-ix+1 > 3 {
+	if jx-ix+1 > 4 {
+		calcScore(state, jx-ix+1)
 		for l := ix; l <= jx; l++ {
 			table[l*9+l-x+y] = 0
 		}
@@ -313,11 +324,19 @@ func checkLine(state *DBComminication, curr Point) bool {
 		jx++
 		jy--
 	}
-	if jx-ix+1 > 3 {
+	if jx-ix+1 > 4 {
+		calcScore(state, jx-ix+1)
 		for l := ix; l <= jx; l++ {
 			table[l*9+x+y-l] = 0
 		}
 		return true
 	}
 	return false
+}
+
+func calcScore(state *DBComminication, n int32) {
+	state.score += n * (n - 5 + 1)
+	if state.bestScore < state.score {
+		state.bestScore = state.score
+	}
 }

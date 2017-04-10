@@ -11,7 +11,6 @@ import getMuiTheme from "material-ui/styles/getMuiTheme";
 import MuiThemeProvider from "material-ui/styles/MuiThemeProvider";
 import Login from "./Login";
 import Play from "./Play";
-import User from "./User";
 
 // Executes the code below when the document is ready.
 $(() => {
@@ -24,7 +23,6 @@ $(() => {
     <MuiThemeProvider muiTheme={getMuiTheme()}>
       <Router history={browserHistory}>
         <Route path="/" component={Login}/>
-        <Route path="/user/:username" component={User}/>
         <Route path="/play" component={Play}/>
       </Router>
     </MuiThemeProvider>

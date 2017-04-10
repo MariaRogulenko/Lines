@@ -14,7 +14,7 @@ var database *sql.DB
 var err error
 
 func createTable() {
-	sqlTable := "CREATE TABLE IF NOT EXISTS Game(Id TEXT NOT NULL PRIMARY KEY,Name TEXT NOT NULL, CurrScore INT, Board TEXT, ActX INT default -1, ActY INT default -1)"
+	sqlTable := "CREATE TABLE IF NOT EXISTS Game(Id TEXT NOT NULL PRIMARY KEY,Name TEXT NOT NULL,BestScore INT, CurrScore INT, Board TEXT, ActX INT default -1, ActY INT default -1)"
 	_, err = database.Exec(sqlTable)
 	if err != nil {
 		log.Fatal(err)
@@ -27,17 +27,18 @@ func StoreItem(params *DBComminication) {
 	INSERT OR REPLACE INTO Game(
 		Id,
 		Name,
+		BestScore,
 		CurrScore,
 		Board,
 		ActX,
 		ActY
-	) values(?, ?, ?, ?, ?, ?)
+	) values(?, ?, ?, ?, ?, ?, ?)
 	`
 	stmt, err := database.Prepare(sqlAdditem)
 	if err != nil {
 		panic(err)
 	}
-	_, err = stmt.Exec(params.id, params.username, params.score, encodeTable(params.table), params.active.x, params.active.y)
+	_, err = stmt.Exec(params.id, params.username, params.bestScore, params.score, encodeTable(params.table), params.active.x, params.active.y)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,7 +58,7 @@ func ReadItem(id string) *DBComminication {
 	result := new(DBComminication)
 	var eTable string
 	for rows.Next() {
-		err2 := rows.Scan(&result.id, &result.username, &result.score, &eTable, &result.active.x, &result.active.y)
+		err2 := rows.Scan(&result.id, &result.username, &result.bestScore, &result.score, &eTable, &result.active.x, &result.active.y)
 		if err2 != nil {
 			panic(err2)
 		}
