@@ -14,7 +14,7 @@ var database *sql.DB
 var err error
 
 func createTable() {
-	sqlTable := "CREATE TABLE IF NOT EXISTS Game(Id TEXT NOT NULL PRIMARY KEY,Name TEXT NOT NULL,BestScore INT, CurrScore INT, Board TEXT, ActX INT default -1, ActY INT default -1)"
+	sqlTable := "CREATE TABLE IF NOT EXISTS Game(Id TEXT NOT NULL PRIMARY KEY,Name TEXT NOT NULL,BestScore INT, CurrScore INT, Board TEXT, ActX INT default -1, ActY INT default -1, NextColors TEXT)"
 	_, err = database.Exec(sqlTable)
 	if err != nil {
 		log.Fatal(err)
@@ -31,14 +31,15 @@ func StoreItem(params *DBComminication) {
 		CurrScore,
 		Board,
 		ActX,
-		ActY
-	) values(?, ?, ?, ?, ?, ?, ?)
+		ActY,
+		NextColors
+	) values(?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	stmt, err := database.Prepare(sqlAdditem)
 	if err != nil {
 		panic(err)
 	}
-	_, err = stmt.Exec(params.id, params.username, params.bestScore, params.score, encodeTable(params.table), params.active.x, params.active.y)
+	_, err = stmt.Exec(params.id, params.username, params.bestScore, params.score, encodeTable(params.table), params.active.x, params.active.y, encodeTable(params.nextColors))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,8 +58,9 @@ func ReadItem(id string) *DBComminication {
 	defer rows.Close()
 	result := new(DBComminication)
 	var eTable string
+	var eColors string
 	for rows.Next() {
-		err2 := rows.Scan(&result.id, &result.username, &result.bestScore, &result.score, &eTable, &result.active.x, &result.active.y)
+		err2 := rows.Scan(&result.id, &result.username, &result.bestScore, &result.score, &eTable, &result.active.x, &result.active.y, &eColors)
 		if err2 != nil {
 			panic(err2)
 		}
@@ -67,6 +69,7 @@ func ReadItem(id string) *DBComminication {
 		return nil
 	}
 	result.table = decodeTable(eTable)
+	result.nextColors = decodeTable(eColors)
 	return result
 }
 

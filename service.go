@@ -16,12 +16,13 @@ type Service struct {
 
 // DBComminication implements
 type DBComminication struct {
-	id        string
-	username  string
-	bestScore int32
-	score     int32
-	table     []int32
-	active    Point
+	id         string
+	username   string
+	bestScore  int32
+	score      int32
+	table      []int32
+	active     Point
+	nextColors []int32
 }
 
 // Point implements
@@ -64,12 +65,15 @@ func (s *Service) Login(_ context.Context, req *api.LoginRequest) (*api.LoginRes
 			x: -1,
 			y: -1,
 		},
+		nextColors: generateColors(5),
 	}
-	var counter int32 = 81
-	for i := 0; i < 5; i++ {
-		createRand(counter, result)
-		counter--
-	}
+	generateRand(result)
+	result.nextColors = generateColors(3)
+	//var counter int32 = 81
+	//for i := 0; i < 5; i++ {
+	//	createRand(counter, result)
+	//	counter--
+	//}
 	StoreItem(result)
 	return &api.LoginResponse{Id: req.Id}, nil
 }
@@ -95,11 +99,14 @@ func (s *Service) New(_ context.Context, req *api.NewRequest) (*api.NewResponse,
 	result.active.x = -1
 	result.active.y = -1
 	result.score = 0
-	var counter int32 = 81
-	for i := 0; i < 5; i++ {
-		createRand(counter, result)
-		counter--
-	}
+	result.nextColors = generateColors(5)
+	generateRand(result)
+	result.nextColors = generateColors(3)
+	//var counter int32 = 81
+	//for i := 0; i < 5; i++ {
+	//	createRand(counter, result)
+	//	counter--
+	//}
 	StoreItem(result)
 	return &api.NewResponse{Changed: true, State: &api.State{
 		Status: api.Status_READY,
@@ -111,6 +118,7 @@ func (s *Service) New(_ context.Context, req *api.NewRequest) (*api.NewResponse,
 				X: result.active.x,
 				Y: result.active.y,
 			},
+			NextColors: result.nextColors,
 		},
 		BestScore: result.bestScore,
 	}}, nil
@@ -135,6 +143,7 @@ func (s *Service) GetState(_ context.Context, req *api.StateRequest) (*api.State
 				X: result.active.x,
 				Y: result.active.y,
 			},
+			NextColors: result.nextColors,
 		},
 		BestScore: result.bestScore,
 	}, nil
@@ -149,12 +158,7 @@ func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveRespon
 	//if !ok {
 	//	return &api.MoveResponse{State: &api.State{Status: api.Status_NOT_FOUND}}, nil
 	//}
-	var counter int32
-	for i := 0; i < 81; i++ {
-		if result.table[i] == 0 {
-			counter++
-		}
-	}
+	//var counter = count(result)
 	to := req.To.X*9 + req.To.Y
 	if result.active.x != -1 {
 		if result.table[to] > 0 {
@@ -168,10 +172,12 @@ func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveRespon
 				result.active.x = -1
 				result.active.y = -1
 				if !checkLine(result, dist) {
-					for i := 0; i < 3; i++ {
-						createRand(counter, result)
-						counter--
-					}
+					generateRand(result)
+					result.nextColors = generateColors(3)
+					//for i := 0; i < 3; i++ {
+					//	createRand(counter, result)
+					//	counter--
+					//}
 					//call gen 3 next(result)
 				}
 			}
@@ -192,9 +198,59 @@ func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveRespon
 				X: result.active.x,
 				Y: result.active.y,
 			},
+			NextColors: result.nextColors,
 		},
 		BestScore: result.bestScore,
 	}}, nil
+}
+
+func count(state *DBComminication) int32 {
+	var counter int32
+	for i := 0; i < 81; i++ {
+		if state.table[i] == 0 {
+			counter++
+		}
+	}
+	return counter
+}
+
+func generateColors(n int32) []int32 {
+	var i int32
+	rand.Seed(time.Now().UTC().UnixNano())
+	var slice = make([]int32, n)
+	for i = 0; i < n; i++ {
+		slice[i] = rand.Int31n(7) + 1
+	}
+	return slice
+}
+
+func generateRand(state *DBComminication) {
+	var counter = count(state)
+	var y, j, k int32
+	rand.Seed(time.Now().UTC().UnixNano())
+
+	for _, x := range state.nextColors {
+		y = rand.Int31n(counter)
+		var temp int32
+		for j = 0; j < 9; j++ {
+			for k = 0; k < 9; k++ {
+				if temp < y {
+					if state.table[j*9+k] == 0 {
+						temp++
+					}
+				} else if temp == y {
+					if state.table[j*9+k] == 0 {
+						state.table[j*9+k] = x
+						checkLine(state, Point{x: j, y: k})
+						temp++
+					} else {
+						continue
+					}
+				}
+			}
+		}
+		counter--
+	}
 }
 
 func createRand(counter int32, state *DBComminication) {
