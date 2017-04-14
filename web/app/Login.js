@@ -22,7 +22,7 @@ export default class Login extends Component {
     //    browserHistory.push("/user/" + this.state.username + "/");
     //}
 
-    handleNew = (name: string, id: string) => {
+    handleLogin = (name: string, id: string) => {
         this.setState({username: name, userID: id});
         $.ajax({
             type: "POST",
@@ -40,15 +40,14 @@ export default class Login extends Component {
             },
         });
     }
+
     //<TextField hintText="Enter your name" onChange={this.handleUsernameChange}/><br/>
     //            <RaisedButton label="Login" onTouchTap={this.handleLogin}/>
     render() {
         return (
             <div>
                 <AppBar title="Lines" showMenuIconButton={false}/>
-                <FacebookButton ha={this.handleNew}/>
-                
-                
+                <FacebookButton FBLogin={this.handleLogin}/>
             </div>
         );
     }

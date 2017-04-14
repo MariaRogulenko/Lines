@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"errors"
+
 	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
@@ -22,7 +24,7 @@ func createTable() {
 }
 
 // StoreItem writes to database
-func StoreItem(params *DBComminication) {
+func StoreItem(params *DBCommunication) error {
 	sqlAdditem := `
 	INSERT OR REPLACE INTO Game(
 		Id,
@@ -37,40 +39,41 @@ func StoreItem(params *DBComminication) {
 	`
 	stmt, err := database.Prepare(sqlAdditem)
 	if err != nil {
-		panic(err)
+		return errors.New("Failed to prepare DB for write")
 	}
 	_, err = stmt.Exec(params.id, params.username, params.bestScore, params.score, encodeTable(params.table), params.active.x, params.active.y, encodeTable(params.nextColors))
 	if err != nil {
-		log.Fatal(err)
+		return errors.New("Failed to write to DB")
 	}
+	return nil
 }
 
 // ReadItem reads to database
-func ReadItem(id string) *DBComminication {
+func ReadItem(id string) (*DBCommunication, error) {
 	sqlReadAll := `
 	SELECT * FROM Game 
     WHERE Id=?
 	`
 	rows, err := database.Query(sqlReadAll, id)
 	if err != nil {
-		panic(err)
+		return nil, errors.New("Failed to read from DB")
 	}
 	defer rows.Close()
-	result := new(DBComminication)
+	result := new(DBCommunication)
 	var eTable string
 	var eColors string
 	for rows.Next() {
-		err2 := rows.Scan(&result.id, &result.username, &result.bestScore, &result.score, &eTable, &result.active.x, &result.active.y, &eColors)
-		if err2 != nil {
-			panic(err2)
+		err = rows.Scan(&result.id, &result.username, &result.bestScore, &result.score, &eTable, &result.active.x, &result.active.y, &eColors)
+		if err != nil {
+			return nil, errors.New("Scan")
 		}
 	}
 	if result.id == "" {
-		return nil
+		return nil, nil
 	}
 	result.table = decodeTable(eTable)
 	result.nextColors = decodeTable(eColors)
-	return result
+	return result, nil
 }
 
 // RegisterAndOpenDB registers and opens database

@@ -1,6 +1,7 @@
 package lines
 
 import (
+	"errors"
 	"math/rand"
 	"sync"
 	"time"
@@ -14,8 +15,8 @@ type Service struct {
 	mu sync.Mutex
 }
 
-// DBComminication implements
-type DBComminication struct {
+// DBCommunication implements
+type DBCommunication struct {
 	id         string
 	username   string
 	bestScore  int32
@@ -33,6 +34,7 @@ type Point struct {
 
 // NewService creates a new instance of the Service struct.
 func NewService() *Service {
+	rand.Seed(time.Now().UTC().UnixNano())
 	return &Service{}
 }
 
@@ -40,7 +42,10 @@ func NewService() *Service {
 func (s *Service) Login(_ context.Context, req *api.LoginRequest) (*api.LoginResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	result := ReadItem(req.Id)
+	result, err := ReadItem(req.Id)
+	if err != nil {
+
+	}
 	if result != nil {
 		return &api.LoginResponse{Id: req.Id}, nil
 	}
@@ -55,7 +60,7 @@ func (s *Service) Login(_ context.Context, req *api.LoginRequest) (*api.LoginRes
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}
-	result = &DBComminication{
+	result = &DBCommunication{
 		id:        req.Id,
 		username:  req.UserName,
 		bestScore: 0,
@@ -69,11 +74,6 @@ func (s *Service) Login(_ context.Context, req *api.LoginRequest) (*api.LoginRes
 	}
 	generateRand(result)
 	result.nextColors = generateColors(3)
-	//var counter int32 = 81
-	//for i := 0; i < 5; i++ {
-	//	createRand(counter, result)
-	//	counter--
-	//}
 	StoreItem(result)
 	return &api.LoginResponse{Id: req.Id}, nil
 }
@@ -82,8 +82,12 @@ func (s *Service) Login(_ context.Context, req *api.LoginRequest) (*api.LoginRes
 func (s *Service) New(_ context.Context, req *api.NewRequest) (*api.NewResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	result := ReadItem(req.Id)
-	// Show error
+	result, err := ReadItem(req.Id)
+	if err != nil {
+		return &api.NewResponse{State: &api.State{
+			Status: api.Status_NOT_FOUND,
+		}}, nil
+	}
 	var arr = []int32{
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -102,11 +106,6 @@ func (s *Service) New(_ context.Context, req *api.NewRequest) (*api.NewResponse,
 	result.nextColors = generateColors(5)
 	generateRand(result)
 	result.nextColors = generateColors(3)
-	//var counter int32 = 81
-	//for i := 0; i < 5; i++ {
-	//	createRand(counter, result)
-	//	counter--
-	//}
 	StoreItem(result)
 	return &api.NewResponse{Changed: true, State: &api.State{
 		Status: api.Status_READY,
@@ -128,11 +127,12 @@ func (s *Service) New(_ context.Context, req *api.NewRequest) (*api.NewResponse,
 func (s *Service) GetState(_ context.Context, req *api.StateRequest) (*api.State, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var result = ReadItem(req.Id)
-	//state, ok := s.states[req.Id]
-	//if !ok {
-	//	return &api.State{Status: api.Status_NOT_FOUND}, nil
-	//}
+	var result, err = ReadItem(req.Id)
+	if err != nil {
+		return &api.State{
+			Status: api.Status_NOT_FOUND,
+		}, nil
+	}
 	return &api.State{
 		Status: api.Status_READY,
 		Board: &api.Board{
@@ -153,12 +153,12 @@ func (s *Service) GetState(_ context.Context, req *api.StateRequest) (*api.State
 func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var result = ReadItem(req.Id)
-	//state, ok := s.states[req.Id]
-	//if !ok {
-	//	return &api.MoveResponse{State: &api.State{Status: api.Status_NOT_FOUND}}, nil
-	//}
-	//var counter = count(result)
+	var result, err = ReadItem(req.Id)
+	if err != nil {
+		return &api.MoveResponse{Changed: true, State: &api.State{
+			Status: api.Status_NOT_FOUND,
+		}}, nil
+	}
 	to := req.To.X*9 + req.To.Y
 	if result.active.x != -1 {
 		if result.table[to] > 0 {
@@ -172,13 +172,24 @@ func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveRespon
 				result.active.x = -1
 				result.active.y = -1
 				if !checkLine(result, dist) {
-					generateRand(result)
+					err = generateRand(result)
+					if err != nil {
+						return &api.MoveResponse{Changed: true, State: &api.State{
+							Status: api.Status_GAME_OVER,
+							Board: &api.Board{
+								CreatedBy: result.username,
+								Score:     result.score,
+								Table:     result.table,
+								Active: &api.Point{
+									X: result.active.x,
+									Y: result.active.y,
+								},
+								NextColors: result.nextColors,
+							},
+							BestScore: result.bestScore,
+						}}, nil
+					}
 					result.nextColors = generateColors(3)
-					//for i := 0; i < 3; i++ {
-					//	createRand(counter, result)
-					//	counter--
-					//}
-					//call gen 3 next(result)
 				}
 			}
 		}
@@ -187,7 +198,7 @@ func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveRespon
 			result.active = Point{x: req.To.X, y: req.To.Y}
 		}
 	}
-	StoreItem(result)
+	err = StoreItem(result)
 	return &api.MoveResponse{Changed: true, State: &api.State{
 		Status: api.Status_READY,
 		Board: &api.Board{
@@ -204,7 +215,7 @@ func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveRespon
 	}}, nil
 }
 
-func count(state *DBComminication) int32 {
+func count(state *DBCommunication) int32 {
 	var counter int32
 	for i := 0; i < 81; i++ {
 		if state.table[i] == 0 {
@@ -216,7 +227,7 @@ func count(state *DBComminication) int32 {
 
 func generateColors(n int32) []int32 {
 	var i int32
-	rand.Seed(time.Now().UTC().UnixNano())
+	//rand.Seed(time.Now().UTC().UnixNano())
 	var slice = make([]int32, n)
 	for i = 0; i < n; i++ {
 		slice[i] = rand.Int31n(7) + 1
@@ -224,10 +235,10 @@ func generateColors(n int32) []int32 {
 	return slice
 }
 
-func generateRand(state *DBComminication) {
+func generateRand(state *DBCommunication) error {
 	var counter = count(state)
 	var y, j, k int32
-	rand.Seed(time.Now().UTC().UnixNano())
+	//rand.Seed(time.Now().UTC().UnixNano())
 
 	for _, x := range state.nextColors {
 		y = rand.Int31n(counter)
@@ -241,7 +252,14 @@ func generateRand(state *DBComminication) {
 				} else if temp == y {
 					if state.table[j*9+k] == 0 {
 						state.table[j*9+k] = x
-						checkLine(state, Point{x: j, y: k})
+						counter--
+						if checkLine(state, Point{x: j, y: k}) {
+							counter = count(state)
+						}
+						if counter == 0 {
+							err := errors.New("")
+							return err
+						}
 						temp++
 					} else {
 						continue
@@ -249,33 +267,8 @@ func generateRand(state *DBComminication) {
 				}
 			}
 		}
-		counter--
 	}
-}
-
-func createRand(counter int32, state *DBComminication) {
-	var x, y, j, k int32
-	rand.Seed(time.Now().UTC().UnixNano())
-	x = rand.Int31n(7)
-	y = rand.Int31n(counter)
-	var temp int32
-	for j = 0; j < 9; j++ {
-		for k = 0; k < 9; k++ {
-			if temp < y {
-				if state.table[j*9+k] == 0 {
-					temp++
-				}
-			} else if temp == y {
-				if state.table[j*9+k] == 0 {
-					state.table[j*9+k] = x + 1
-					checkLine(state, Point{x: j, y: k})
-					temp++
-				} else {
-					continue
-				}
-			}
-		}
-	}
+	return nil
 }
 
 var (
@@ -283,7 +276,7 @@ var (
 	dy = []int32{0, 0, 1, -1}
 )
 
-func bfs(state *DBComminication, to Point) bool {
+func bfs(state *DBCommunication, to Point) bool {
 	var queue []Point
 	var u [9][9]bool
 	from := state.active
@@ -310,7 +303,7 @@ func bfs(state *DBComminication, to Point) bool {
 	return false
 }
 
-func checkLine(state *DBComminication, curr Point) bool {
+func checkLine(state *DBCommunication, curr Point) bool {
 	var i, j, ix, iy, jx, jy int32
 	// check vertical
 	x := curr.x
@@ -390,7 +383,7 @@ func checkLine(state *DBComminication, curr Point) bool {
 	return false
 }
 
-func calcScore(state *DBComminication, n int32) {
+func calcScore(state *DBCommunication, n int32) {
 	state.score += n * (n - 5 + 1)
 	if state.bestScore < state.score {
 		state.bestScore = state.score
