@@ -3,8 +3,11 @@ package lines
 import (
 	"errors"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
+
+	"fmt"
 
 	"github.com/MariaRogulenko/lines/api"
 	"golang.org/x/net/context"
@@ -12,7 +15,8 @@ import (
 
 // Service implements the api.Game GRPC interface.
 type Service struct {
-	mu sync.Mutex
+	mu    sync.Mutex
+	maxID int
 }
 
 // DBCommunication implements
@@ -60,6 +64,10 @@ func (s *Service) Login(_ context.Context, req *api.LoginRequest) (*api.LoginRes
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}
+	if req.Id == "" {
+		s.maxID++
+		req.Id = strconv.Itoa(s.maxID)
+	}
 	result = &DBCommunication{
 		id:        req.Id,
 		username:  req.UserName,
@@ -84,6 +92,7 @@ func (s *Service) New(_ context.Context, req *api.NewRequest) (*api.NewResponse,
 	defer s.mu.Unlock()
 	result, err := ReadItem(req.Id)
 	if err != nil {
+		fmt.Println("new")
 		return &api.NewResponse{State: &api.State{
 			Status: api.Status_NOT_FOUND,
 		}}, nil
@@ -128,11 +137,15 @@ func (s *Service) GetState(_ context.Context, req *api.StateRequest) (*api.State
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var result, err = ReadItem(req.Id)
-	if err != nil {
+	fmt.Println(result)
+	fmt.Println(err)
+	if err != nil || result == nil {
+		fmt.Println("getstate")
 		return &api.State{
 			Status: api.Status_NOT_FOUND,
 		}, nil
 	}
+
 	return &api.State{
 		Status: api.Status_READY,
 		Board: &api.Board{
@@ -154,7 +167,8 @@ func (s *Service) Move(_ context.Context, req *api.MoveRequest) (*api.MoveRespon
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var result, err = ReadItem(req.Id)
-	if err != nil {
+	if err != nil || result == nil {
+		fmt.Println("move")
 		return &api.MoveResponse{Changed: true, State: &api.State{
 			Status: api.Status_NOT_FOUND,
 		}}, nil
@@ -227,7 +241,6 @@ func count(state *DBCommunication) int32 {
 
 func generateColors(n int32) []int32 {
 	var i int32
-	//rand.Seed(time.Now().UTC().UnixNano())
 	var slice = make([]int32, n)
 	for i = 0; i < n; i++ {
 		slice[i] = rand.Int31n(7) + 1
@@ -238,8 +251,6 @@ func generateColors(n int32) []int32 {
 func generateRand(state *DBCommunication) error {
 	var counter = count(state)
 	var y, j, k int32
-	//rand.Seed(time.Now().UTC().UnixNano())
-
 	for _, x := range state.nextColors {
 		y = rand.Int31n(counter)
 		var temp int32

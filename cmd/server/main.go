@@ -61,7 +61,6 @@ func main() {
 	flag.Parse()
 	s := lines.NewService()
 	lines.RegisterAndOpenDB()
-	//lines.WriteDB()
 	runService(s)
 	registerRPCProxy(context.Background())
 	registerHTMLHandler()

@@ -46,19 +46,36 @@ export default class BoardComponent extends React.Component {
         var rows = this.convertToMatrix();
         var grid = rows.map((row, i) => {
             var rowElements = row.map((value, j) => {
-                var radius = 30;
+                var radius = this.props.radius;
                 const r = value & 1;
                 const g = value & 2;
                 const b = value & 4;
                 const color = "#" + (r||"f") + (g||"f") + (b||"f");
-                if (this.props.board.active.x !== -1 && i === (this.props.board.active.x || 0) && j ===  (this.props.board.active.y || 0) ) {
+                if (this.props.board.active.x !== -1 && i === (this.props.board.active.x || 0) 
+                    && j ===  (this.props.board.active.y || 0) ) {
                     return(
                         <Motion defaultStyle={{ opacity: 0 }} style={{ opacity: spring(this.state.opacity) }}>
-                        { (style) => <CircleComponent key = {'tale_' + j} x={i} y={j} radius={radius} color={color} moveClick={this.handleClick} style={style}/>}
+                        { (style) => <CircleComponent 
+                                        key = {'tale_' + j} 
+                                        x={i} 
+                                        y={j} 
+                                        radius={radius} 
+                                        color={color} 
+                                        moveClick={this.handleClick} 
+                                        style={style}
+                                    />}
                         </Motion>
                 )} else {
                     return(
-                    <CircleComponent key = {'tale_' + j} x={i} y={j} radius={radius} color={color} moveClick={this.handleClick} style={{opacity: 1}}/>
+                    <CircleComponent 
+                        key = {'tale_' + j} 
+                        x={i} 
+                        y={j} 
+                        radius={radius} 
+                        color={color} 
+                        moveClick={this.handleClick} 
+                        style={{opacity: 1}}
+                    />
                 );
                 }
             });
@@ -68,7 +85,10 @@ export default class BoardComponent extends React.Component {
         });
         return (
             
-            <Surface width='540' height='540' style={{backgroundColor: 'whitesmoke'}}>
+            <Surface 
+                width={this.props.radius * 18} 
+                height={this.props.radius * 18} 
+                style={{display: 'block', margin: 'auto', background: 'whitesmoke'}}>
 				<Group>
 					{grid}
 				</Group>

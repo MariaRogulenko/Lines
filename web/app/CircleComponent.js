@@ -11,7 +11,8 @@ export default class CircleComponent extends React.Component {
     };
 
     makePath = (radius: number , cx: number, cy: number) => {
-        var path = Path().moveTo(cx, cy-radius).arc(0, radius * 2, radius).arc(0, radius * -2, radius).close();
+        var path = Path().moveTo(cx, cy-radius).arc(0, radius * 2, radius)
+        .arc(0, radius * -2, radius).close();
         return path;
     }
 
@@ -25,7 +26,12 @@ export default class CircleComponent extends React.Component {
         var cy = this.props.y * 2 * radius + radius;
         var path = this.makePath(radius, cx, cy);
         return (
-                <Shape d={path} fill={this.props.color} onClick={this.handleClick} opacity={this.props.style.opacity}></Shape>
+                <Shape 
+                    d={path} 
+                    fill={this.props.color} 
+                    onClick={this.handleClick} 
+                    opacity={this.props.style.opacity}>
+                </Shape>
         )
     }
 }

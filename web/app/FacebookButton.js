@@ -9,7 +9,9 @@ export default class MyComponent extends React.Component {
     };
 
     responseFacebook = (response: Object) => {
-        this.props.FBLogin(response.name, response.userID);
+        this.props.userChange(response.name, response.userID);
+        this.props.x();
+        
     };
 
     render() {
@@ -19,7 +21,9 @@ export default class MyComponent extends React.Component {
                 autoLoad={false}
                 fields="name,email,picture"
                 callback={this.responseFacebook}
-                data-auto-logout-link="true"
+                icon="fa-facebook"
+                data-auto-logout-link="true" 
+                size="small"
             />
         )
     }

@@ -55,6 +55,7 @@ func ReadItem(id string) (*DBCommunication, error) {
     WHERE Id=?
 	`
 	rows, err := database.Query(sqlReadAll, id)
+	fmt.Println(rows)
 	if err != nil {
 		return nil, errors.New("Failed to read from DB")
 	}

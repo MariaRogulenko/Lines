@@ -12,7 +12,7 @@ export default class NextComponent extends React.Component {
 
     render() {
         var row = this.props.board.next_colors.map((value, i) => {
-                var radius = 30;
+                var radius = this.props.radius;
                 const r = value & 1;
                 const g = value & 2;
                 const b = value & 4;
@@ -20,7 +20,8 @@ export default class NextComponent extends React.Component {
                 return <CircleComponent key = {'next_' + i} x={i} y={0} radius={radius} color={color} style={{opacity: 1}}/>
         });
         return (
-        <Surface width='180' height='60' style={{backgroundColor: 'whitesmoke'}}>
+            
+        <Surface width={this.props.radius * 6} height={this.props.radius * 2} style={{ display: 'block', margin: 'auto'}}>
             <Group>
                 {row}
             </Group>
